@@ -8,8 +8,8 @@ from typing import Tuple
 
 router = APIRouter(prefix="/incident-command", tags=["Incident Command"])
 
-INCIDENT_SERVICE_URL_MAIN = os.getenv("INCIDENT_SERVICE_URL_MAIN", "http://localhost:8003/command-incident-main")
-INCIDENT_SERVICE_URL_REDUNDANT = os.getenv("INCIDENT_SERVICE_URL_REDUNDANT", "http://localhost:8005/command-incident-backup")
+INCIDENT_SERVICE_URL_MAIN = os.getenv("INCIDENT_SERVICE_URL_MAIN", "http://localhost:8004/incident-command-main")
+INCIDENT_SERVICE_URL_REDUNDANT = os.getenv("INCIDENT_SERVICE_URL_REDUNDANT", "http://localhost:8005/incident-command-backup")
 
 SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'secret_key')
 ALGORITHM = "HS256"

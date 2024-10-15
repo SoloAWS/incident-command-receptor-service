@@ -28,10 +28,10 @@ This microservice provides a simple API for incident management.
 To run the service locally:
 
 ```
-uvicorn app.main:app --reload --port 8004
+uvicorn app.main:app --reload --port 8003
 ```
 
-The service will be available at `http://localhost:8004`.
+The service will be available at `http://localhost:8003`.
 
 ## API Endpoints
 
@@ -44,5 +44,5 @@ To build and run the Docker container:
 
 ```
 docker build -t incident-management-service .
-docker run -p 8000:8000 incident-management-service
+docker run -p 8003:8003 incident-management-service
 ```
