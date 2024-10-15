@@ -28,7 +28,7 @@ This microservice provides a simple API for incident management.
 To run the service locally:
 
 ```
-uvicorn main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8004
 ```
 
 The service will be available at `http://localhost:8004`.
