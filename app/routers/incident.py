@@ -51,7 +51,7 @@ def create_incident_in_database(incident_data: dict, token: str, url: str) -> Tu
     except requests.RequestException:
         return {"error": "Service unavailable"}, 503
 
-@router.post("/", response_model=CreateIncidentResponse)
+@router.post("/", response_model=CreateIncidentResponse, status_code=201)
 async def create_incident(
     incident: CreateIncidentRequest,
     #current_user: dict = Depends(get_current_user)
