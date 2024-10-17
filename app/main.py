@@ -22,7 +22,7 @@ app.include_router(incident.router)
 
 version = "1.0"
 
-@app.get("/incident-command/health")
+@app.get("/incident-command-receptor/health")
 async def health():
     return {"status": "OK"}
 
