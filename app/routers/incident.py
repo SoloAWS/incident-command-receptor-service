@@ -123,10 +123,6 @@ async def create_user_incident(
         "channel": channel,
         "priority": priority
     }
-    
-    user_data, user_status = get_user_info_request(user_id, 'token')
-    if user_status != 200:
-        raise HTTPException(status_code=user_status, detail=user_data)
 
     # Try main database service
     response_data, status_code = create_incident_in_database_user(incident_data, 'token', INCIDENT_SERVICE_URL_MAIN, file)
