@@ -10,7 +10,7 @@ from typing import Optional, Tuple
 
 router = APIRouter(prefix="/incident-command", tags=["Incident Command"])
 
-USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://192.168.68.111:8002/user")
+USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://localhost:8002/user")
 INCIDENT_SERVICE_URL_MAIN = os.getenv("INCIDENT_SERVICE_URL_MAIN", "http://192.168.68.111:8004/incident-command-main")
 INCIDENT_SERVICE_URL_REDUNDANT = os.getenv("INCIDENT_SERVICE_URL_REDUNDANT", "http://192.168.68.111:8005/incident-command-backup")
 
@@ -107,9 +107,9 @@ async def create_user_incident(
     user_id: UUID = Form(...),
     company_id: UUID = Form(...),
     description: str = Form(...),
-    state: IncidentState = Form(IncidentState.OPEN),
-    channel: IncidentChannel = Form(IncidentChannel.MOBILE),
-    priority: IncidentPriority = Form(IncidentPriority.MEDIUM),
+    state: str = Form(IncidentState.OPEN.value),
+    channel: str = Form(IncidentChannel.MOBILE.value),
+    priority: str = Form(IncidentPriority.MEDIUM.value),
     file: Optional[UploadFile] = File(None),
     #current_user: dict = Depends(get_current_user)
 ):
