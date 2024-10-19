@@ -8,7 +8,7 @@ import json
 from uuid import UUID
 from typing import Optional, Tuple
 
-router = APIRouter(prefix="/incident-command", tags=["Incident Command"])
+router = APIRouter(prefix="/incident-command-receptor", tags=["Incident Command"])
 
 USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://192.168.68.111:8002/user")
 INCIDENT_SERVICE_URL_MAIN = os.getenv("INCIDENT_SERVICE_URL_MAIN", "http://192.168.68.111:8004/incident-command-main")
