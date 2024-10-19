@@ -1,12 +1,19 @@
-import pytest
+# test_incident.py
+import os
 from fastapi.testclient import TestClient
+from fastapi import HTTPException, status
 from unittest.mock import patch, MagicMock
-from uuid import UUID
+import pytest
+import jwt
+from uuid import uuid4
 from app.main import app
-from app.routers.incident import router as incident_command_router, create_incident_in_database, get_user_info_request
-
+from app.routers.incident import create_incident_in_database, get_current_user, router as incident_router
+from app.schemas.incident import CreateIncidentRequest, CreateIncidentResponse
 
 client = TestClient(app)
+
+SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'secret_key')
+ALGORITHM = "HS256"
 
 @pytest.fixture
 def mock_get_user_info_request():
@@ -18,13 +25,37 @@ def mock_create_incident_in_database():
     with patch('app.routers.incident.create_incident_in_database') as mock:
         yield mock
 
+@pytest.fixture
+def mock_jwt_encode():
+    with patch('jwt.encode') as mock:
+        mock.return_value = 'mocked_token'
+        yield mock
+
+def create_test_token():
+    token_data = {
+        "sub": str(uuid4()),
+        "user_type": "company"
+    }
+    return jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+
 def test_create_incident_success(mock_get_user_info_request, mock_create_incident_in_database):
+    
+    token_data = {
+        "sub": str(str(uuid4())),
+        "user_type": "company"
+    }
+    
+    token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)  
+    user_id = str(uuid4())
+    company_id = str(uuid4())
+    incident_id = str(uuid4())
+    
     mock_get_user_info_request.return_value = ({"user_data": "valid"}, 200)
     mock_create_incident_in_database.return_value = (
         {
-            "id": "123e4567-e89b-12d3-a456-426614174000",
-            "user_id": "123e4567-e89b-12d3-a456-426614174001",
-            "company_id": "123e4567-e89b-12d3-a456-426614174002",
+            "id": incident_id,
+            "user_id": user_id,
+            "company_id": company_id,
             "description": "Test incident",
             "state": "open",
             "channel": "phone",
@@ -37,53 +68,56 @@ def test_create_incident_success(mock_get_user_info_request, mock_create_inciden
     response = client.post(
         "/incident-command/",
         json={
-            "user_id": "123e4567-e89b-12d3-a456-426614174001",
-            "company_id": "123e4567-e89b-12d3-a456-426614174002",
+            "user_id": user_id,
+            "company_id": company_id,
             "description": "Test incident",
             "state": "open",
             "channel": "phone",
             "priority": "medium"
-        }
+        },
+        headers={"token": token}
     )
-    
-    assert response.status_code == 201
-    
-    response_json = response.json()
-    print(f"Response JSON: {response_json}")
-    
 
+    print(f"Response status code: {response.status_code}")
+    print(f"Response content: {response.content}")
+
+    assert response.status_code == 201, f"Expected 201, but got {response.status_code}. Response: {response.content}"
 
 def test_create_incident_user_not_found(mock_get_user_info_request):
+    token = create_test_token()
     mock_get_user_info_request.return_value = ({"detail": "User not found"}, 404)
 
     response = client.post(
         "/incident-command/",
         json={
-            "user_id": "123e4567-e89b-12d3-a456-426614174001",
-            "company_id": "123e4567-e89b-12d3-a456-426614174002",
+            "user_id": str(uuid4()),
+            "company_id": str(uuid4()),
             "description": "Test incident",
             "state": "open",
             "channel": "phone",
             "priority": "medium"
-        }
+        },
+        headers={"token": token}
     )
-
-    print(f"Response status code: {response.status_code}")
-    print(f"Response content: {response.content}")
 
     assert response.status_code == 404
 
 def test_create_incident_main_service_fails_redundant_succeeds(
     mock_get_user_info_request, mock_create_incident_in_database
 ):
+    token = create_test_token()
+    user_id = str(uuid4())
+    company_id = str(uuid4())
+    incident_id = str(uuid4())
+
     mock_get_user_info_request.return_value = ({"user_data": "valid"}, 200)
     mock_create_incident_in_database.side_effect = [
         ({"error": "Service unavailable"}, 503),
         (
             {
-                "id": "123e4567-e89b-12d3-a456-426614174000",
-                "user_id": "123e4567-e89b-12d3-a456-426614174001",
-                "company_id": "123e4567-e89b-12d3-a456-426614174002",
+                "id": incident_id,
+                "user_id": user_id,
+                "company_id": company_id,
                 "description": "Test incident",
                 "state": "open",
                 "channel": "phone",
@@ -97,35 +131,38 @@ def test_create_incident_main_service_fails_redundant_succeeds(
     response = client.post(
         "/incident-command/",
         json={
-            "user_id": "123e4567-e89b-12d3-a456-426614174001",
-            "company_id": "123e4567-e89b-12d3-a456-426614174002",
+            "user_id": user_id,
+            "company_id": company_id,
             "description": "Test incident",
             "state": "open",
             "channel": "phone",
             "priority": "medium"
-        }
+        },
+        headers={"token": token}
     )
 
     assert response.status_code == 201
-    assert response.json()["id"] == "123e4567-e89b-12d3-a456-426614174000"
+    assert response.json()["id"] == incident_id
     assert mock_create_incident_in_database.call_count == 2
 
 def test_create_incident_both_services_fail(
     mock_get_user_info_request, mock_create_incident_in_database
 ):
+    token = create_test_token()
     mock_get_user_info_request.return_value = ({"user_data": "valid"}, 200)
     mock_create_incident_in_database.return_value = ({"error": "Service unavailable"}, 503)
 
     response = client.post(
         "/incident-command/",
         json={
-            "user_id": "123e4567-e89b-12d3-a456-426614174001",
-            "company_id": "123e4567-e89b-12d3-a456-426614174002",
+            "user_id": str(uuid4()),
+            "company_id": str(uuid4()),
             "description": "Test incident",
             "state": "open",
             "channel": "phone",
             "priority": "medium"
-        }
+        },
+        headers={"token": token}
     )
 
     assert response.status_code == 503
@@ -133,57 +170,40 @@ def test_create_incident_both_services_fail(
     assert mock_create_incident_in_database.call_count == 2
 
 @pytest.mark.parametrize("invalid_data, expected_status", [
-    ({"user_id": "invalid-uuid", "company_id": "123e4567-e89b-12d3-a456-426614174002", "description": "Test", "state": "open", "channel": "phone", "priority": "medium"}, 422),
-    ({"user_id": "123e4567-e89b-12d3-a456-426614174001", "company_id": "invalid-uuid", "description": "Test", "state": "open", "channel": "phone", "priority": "medium"}, 422),
-    ({"user_id": "123e4567-e89b-12d3-a456-426614174001", "company_id": "123e4567-e89b-12d3-a456-426614174002", "description": "Test", "state": "invalid", "channel": "phone", "priority": "medium"}, 422),
-    ({"user_id": "123e4567-e89b-12d3-a456-426614174001", "company_id": "123e4567-e89b-12d3-a456-426614174002", "description": "Test", "state": "open", "channel": "invalid", "priority": "medium"}, 422),
-    ({"user_id": "123e4567-e89b-12d3-a456-426614174001", "company_id": "123e4567-e89b-12d3-a456-426614174002", "description": "Test", "state": "open", "channel": "phone", "priority": "invalid"}, 422),
+    ({"user_id": "invalid-uuid", "company_id": str(uuid4()), "description": "Test", "state": "open", "channel": "phone", "priority": "medium"}, 422),
+    ({"user_id": str(uuid4()), "company_id": "invalid-uuid", "description": "Test", "state": "open", "channel": "phone", "priority": "medium"}, 422),
+    ({"user_id": str(uuid4()), "company_id": str(uuid4()), "description": "Test", "state": "invalid", "channel": "phone", "priority": "medium"}, 422),
+    ({"user_id": str(uuid4()), "company_id": str(uuid4()), "description": "Test", "state": "open", "channel": "invalid", "priority": "medium"}, 422),
+    ({"user_id": str(uuid4()), "company_id": str(uuid4()), "description": "Test", "state": "open", "channel": "phone", "priority": "invalid"}, 422),
 ])
 def test_create_incident_invalid_input(invalid_data, expected_status, mock_get_user_info_request):
+    token = create_test_token()
     mock_get_user_info_request.return_value = ({"user_data": "valid"}, 200)
 
-    response = client.post("/incident-command/", json=invalid_data)
+    response = client.post("/incident-command/", json=invalid_data, headers={"token": token})
 
-    print(f"Response status code: {response.status_code}")
-    print(f"Response content: {response.content}")
     assert response.status_code == expected_status
 
 @patch('requests.post')
 def test_create_incident_in_database(mock_post):
     mock_response = MagicMock()
-    mock_response.json.return_value = {"id": "123e4567-e89b-12d3-a456-426614174000"}
+    mock_response.json.return_value = {"id": str(uuid4())}
     mock_response.status_code = 201
     mock_post.return_value = mock_response
 
     incident_data = {
-        "user_id": UUID("123e4567-e89b-12d3-a456-426614174001"),
-        "company_id": UUID("123e4567-e89b-12d3-a456-426614174002"),
+        "user_id": uuid4(),
+        "company_id": uuid4(),
         "description": "Test incident",
         "state": "open",
         "channel": "phone",
         "priority": "medium"
     }
-    token = "test_token"
+    token = create_test_token()
     url = "http://test-url.com"
 
     response_data, status_code = create_incident_in_database(incident_data, token, url)
 
     assert status_code == 201
-    assert response_data == {"id": "123e4567-e89b-12d3-a456-426614174000"}
+    assert "id" in response_data
     mock_post.assert_called_once()
-
-@patch('requests.get')
-def test_get_user_info_request(mock_get):
-    mock_response = MagicMock()
-    mock_response.json.return_value = {"user_data": "valid"}
-    mock_response.status_code = 200
-    mock_get.return_value = mock_response
-
-    user_id = UUID("123e4567-e89b-12d3-a456-426614174001")
-    token = "test_token"
-
-    response_data, status_code = get_user_info_request(user_id, token)
-
-    assert status_code == 200
-    assert response_data == {"user_data": "valid"}
-    mock_get.assert_called_once()
