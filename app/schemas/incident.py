@@ -32,4 +32,10 @@ class CreateIncidentRequest(BaseModel):
 
 class CreateIncidentResponse(BaseModel):
     id: UUID
-    message: str = "Incident created successfully"
+    user_id: UUID
+    company_id: UUID
+    description: str
+    state: IncidentState = Field(default=IncidentState.OPEN)
+    channel: IncidentChannel
+    priority: IncidentPriority
+    creation_date: datetime
