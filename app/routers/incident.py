@@ -81,21 +81,21 @@ def create_incident_in_database_user(incident_data: dict, token: str, url: str, 
 @router.post("/", response_model=CreateIncidentResponse, status_code=201)
 async def create_incident(
     incident: CreateIncidentRequest,
-    current_user: dict = Depends(get_current_user)
+    #current_user: dict = Depends(get_current_user)
 ):
-    token = jwt.encode(current_user, SECRET_KEY, algorithm=ALGORITHM)
+    #token = jwt.encode(current_user, SECRET_KEY, algorithm=ALGORITHM)
     incident_data = incident.dict()
     
-    user_data, user_status = get_user_info_request(incident.user_id, token)
+    user_data, user_status = get_user_info_request(incident.user_id, 'token')
     if user_status != 200:
         raise HTTPException(status_code=user_status, detail=user_data)
 
     # Try main database service
-    response_data, status_code = create_incident_in_database(incident_data, token, INCIDENT_SERVICE_URL_MAIN)
+    response_data, status_code = create_incident_in_database(incident_data, 'token', INCIDENT_SERVICE_URL_MAIN)
     
     # If main service fails, try redundant service
     if status_code >= 500:
-        response_data, status_code = create_incident_in_database(incident_data, token, INCIDENT_SERVICE_URL_REDUNDANT)
+        response_data, status_code = create_incident_in_database(incident_data, 'token', INCIDENT_SERVICE_URL_REDUNDANT)
     
     if status_code != 201:
         raise HTTPException(status_code=status_code, detail=response_data)
