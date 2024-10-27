@@ -1,4 +1,3 @@
-# router.py
 from fastapi import APIRouter, File, Form, HTTPException, Depends, Header, UploadFile
 from ..schemas.incident import CreateIncidentRequest, CreateIncidentResponse, IncidentChannel, IncidentPriority, IncidentState
 import requests
@@ -11,8 +10,7 @@ from typing import Optional, Tuple
 router = APIRouter(prefix="/incident-command-receptor", tags=["Incident Command"])
 
 USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://192.168.68.111:8002/user")
-INCIDENT_SERVICE_URL_MAIN = os.getenv("INCIDENT_SERVICE_URL_MAIN", "http://192.168.68.111:8004/incident-command-main")
-INCIDENT_SERVICE_URL_REDUNDANT = os.getenv("INCIDENT_SERVICE_URL_REDUNDANT", "http://192.168.68.111:8005/incident-command-backup")
+INCIDENT_SERVICE_URL = os.getenv("INCIDENT_SERVICE_URL", "http://192.168.68.111:8004/incident-command")
 
 SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'secret_key')
 ALGORITHM = "HS256"
@@ -39,7 +37,7 @@ class UUIDEncoder(json.JSONEncoder):
             return str(obj)
         return json.JSONEncoder.default(self, obj)
 
-def create_incident_in_database(incident_data: dict, token: str, url: str) -> Tuple[dict, int]:
+def create_incident_in_database(incident_data: dict, token: str) -> Tuple[dict, int]:
     endpoint = "/"
     headers = {
         "token": f"{token}",
@@ -47,13 +45,13 @@ def create_incident_in_database(incident_data: dict, token: str, url: str) -> Tu
     }
     try:
         json_data = json.dumps(incident_data, cls=UUIDEncoder)
-        response = requests.post(f"{url}{endpoint}", headers=headers, data=json_data, timeout=5)
+        response = requests.post(f"{INCIDENT_SERVICE_URL}{endpoint}", headers=headers, data=json_data, timeout=5)
         
         return response.json(), response.status_code
     except requests.RequestException:
         return {"error": "Service unavailable"}, 503
     
-def create_incident_in_database_user(incident_data: dict, token: str, url: str, file: Optional[UploadFile] = None) -> Tuple[dict, int]:
+def create_incident_in_database_user(incident_data: dict, token: str, file: Optional[UploadFile] = None) -> Tuple[dict, int]:
     endpoint = "/user-incident"
     headers = {
         "token": f"{token}",
@@ -72,7 +70,7 @@ def create_incident_in_database_user(incident_data: dict, token: str, url: str, 
         if file:
             files = {"file": (file.filename, file.file, file.content_type)}
         
-        response = requests.post(f"{url}{endpoint}", headers=headers, data=form_data, files=files, timeout=5)
+        response = requests.post(f"{INCIDENT_SERVICE_URL}{endpoint}", headers=headers, data=form_data, files=files, timeout=5)
         
         return response.json(), response.status_code
     except requests.RequestException:
@@ -90,12 +88,7 @@ async def create_incident(
     if user_status != 200:
         raise HTTPException(status_code=user_status, detail=user_data)
 
-    # Try main database service
-    response_data, status_code = create_incident_in_database(incident_data, 'token', INCIDENT_SERVICE_URL_MAIN)
-    
-    # If main service fails, try redundant service
-    if status_code >= 500:
-        response_data, status_code = create_incident_in_database(incident_data, 'token', INCIDENT_SERVICE_URL_REDUNDANT)
+    response_data, status_code = create_incident_in_database(incident_data, 'token')
     
     if status_code != 201:
         raise HTTPException(status_code=status_code, detail=response_data)
@@ -124,12 +117,7 @@ async def create_user_incident(
         "priority": priority
     }
 
-    # Try main database service
-    response_data, status_code = create_incident_in_database_user(incident_data, 'token', INCIDENT_SERVICE_URL_MAIN, file)
-    
-    # If main service fails, try redundant service
-    if status_code >= 500:
-        response_data, status_code = create_incident_in_database_user(incident_data, 'token', INCIDENT_SERVICE_URL_REDUNDANT, file)
+    response_data, status_code = create_incident_in_database_user(incident_data, 'token', file)
     
     if status_code != 201:
         raise HTTPException(status_code=status_code, detail=response_data)
