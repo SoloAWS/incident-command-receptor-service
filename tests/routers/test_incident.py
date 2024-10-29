@@ -66,7 +66,7 @@ def test_create_incident_success(mock_get_user_info_request, mock_create_inciden
     )
 
     response = client.post(
-        "/incident-command/",
+        "/incident-command-receptor/",
         json={
             "user_id": user_id,
             "company_id": company_id,
@@ -88,7 +88,7 @@ def test_create_incident_user_not_found(mock_get_user_info_request):
     mock_get_user_info_request.return_value = ({"detail": "User not found"}, 404)
 
     response = client.post(
-        "/incident-command/",
+        "/incident-command-receptor/",
         json={
             "user_id": str(uuid4()),
             "company_id": str(uuid4()),
@@ -102,49 +102,6 @@ def test_create_incident_user_not_found(mock_get_user_info_request):
 
     assert response.status_code == 404
 
-def test_create_incident_main_service_fails_redundant_succeeds(
-    mock_get_user_info_request, mock_create_incident_in_database
-):
-    token = create_test_token()
-    user_id = str(uuid4())
-    company_id = str(uuid4())
-    incident_id = str(uuid4())
-
-    mock_get_user_info_request.return_value = ({"user_data": "valid"}, 200)
-    mock_create_incident_in_database.side_effect = [
-        ({"error": "Service unavailable"}, 503),
-        (
-            {
-                "id": incident_id,
-                "user_id": user_id,
-                "company_id": company_id,
-                "description": "Test incident",
-                "state": "open",
-                "channel": "phone",
-                "priority": "medium",
-                "creation_date": "2023-01-01T00:00:00"
-            },
-            201
-        )
-    ]
-
-    response = client.post(
-        "/incident-command/",
-        json={
-            "user_id": user_id,
-            "company_id": company_id,
-            "description": "Test incident",
-            "state": "open",
-            "channel": "phone",
-            "priority": "medium"
-        },
-        headers={"token": token}
-    )
-
-    assert response.status_code == 201
-    assert response.json()["id"] == incident_id
-    assert mock_create_incident_in_database.call_count == 2
-
 def test_create_incident_both_services_fail(
     mock_get_user_info_request, mock_create_incident_in_database
 ):
@@ -153,7 +110,7 @@ def test_create_incident_both_services_fail(
     mock_create_incident_in_database.return_value = ({"error": "Service unavailable"}, 503)
 
     response = client.post(
-        "/incident-command/",
+        "/incident-command-receptor/",
         json={
             "user_id": str(uuid4()),
             "company_id": str(uuid4()),
@@ -167,7 +124,6 @@ def test_create_incident_both_services_fail(
 
     assert response.status_code == 503
     assert response.json()["detail"]["error"] == "Service unavailable"
-    assert mock_create_incident_in_database.call_count == 2
 
 @pytest.mark.parametrize("invalid_data, expected_status", [
     ({"user_id": "invalid-uuid", "company_id": str(uuid4()), "description": "Test", "state": "open", "channel": "phone", "priority": "medium"}, 422),
@@ -180,7 +136,7 @@ def test_create_incident_invalid_input(invalid_data, expected_status, mock_get_u
     token = create_test_token()
     mock_get_user_info_request.return_value = ({"user_data": "valid"}, 200)
 
-    response = client.post("/incident-command/", json=invalid_data, headers={"token": token})
+    response = client.post("/incident-command-receptor/", json=invalid_data, headers={"token": token})
 
     assert response.status_code == expected_status
 
@@ -200,9 +156,8 @@ def test_create_incident_in_database(mock_post):
         "priority": "medium"
     }
     token = create_test_token()
-    url = "http://test-url.com"
 
-    response_data, status_code = create_incident_in_database(incident_data, token, url)
+    response_data, status_code = create_incident_in_database(incident_data, token)
 
     assert status_code == 201
     assert "id" in response_data
