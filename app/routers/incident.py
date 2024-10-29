@@ -79,16 +79,16 @@ def create_incident_in_database_user(incident_data: dict, token: str, file: Opti
 @router.post("/", response_model=CreateIncidentResponse, status_code=201)
 async def create_incident(
     incident: CreateIncidentRequest,
-    #current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
-    #token = jwt.encode(current_user, SECRET_KEY, algorithm=ALGORITHM)
+    token = jwt.encode(current_user, SECRET_KEY, algorithm=ALGORITHM)
     incident_data = incident.dict()
     
-    user_data, user_status = get_user_info_request(incident.user_id, 'token')
+    user_data, user_status = get_user_info_request(incident.user_id, token)
     if user_status != 200:
         raise HTTPException(status_code=user_status, detail=user_data)
 
-    response_data, status_code = create_incident_in_database(incident_data, 'token')
+    response_data, status_code = create_incident_in_database(incident_data, token)
     
     if status_code != 201:
         raise HTTPException(status_code=status_code, detail=response_data)
@@ -104,9 +104,9 @@ async def create_user_incident(
     channel: str = Form(IncidentChannel.MOBILE.value),
     priority: str = Form(IncidentPriority.MEDIUM.value),
     file: Optional[UploadFile] = File(None),
-    #current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
-    #token = jwt.encode(current_user, SECRET_KEY, algorithm=ALGORITHM)
+    token = jwt.encode(current_user, SECRET_KEY, algorithm=ALGORITHM)
     
     incident_data = {
         "user_id": user_id,
@@ -117,7 +117,7 @@ async def create_user_incident(
         "priority": priority
     }
 
-    response_data, status_code = create_incident_in_database_user(incident_data, 'token', file)
+    response_data, status_code = create_incident_in_database_user(incident_data, token, file)
     
     if status_code != 201:
         raise HTTPException(status_code=status_code, detail=response_data)
