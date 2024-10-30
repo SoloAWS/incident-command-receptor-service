@@ -15,21 +15,22 @@ INCIDENT_SERVICE_URL = os.getenv("INCIDENT_SERVICE_URL", "http://192.168.68.111:
 SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'secret_key')
 ALGORITHM = "HS256"
 
-def get_user_info_request(user_id: UUID, token: str):
-    api_url = USER_SERVICE_URL
-    endpoint = f"/user/{user_id}"
-    headers = {"token": f"{token}"}
-    response = requests.get(f"{api_url}{endpoint}", headers=headers)
-    return response.json(), response.status_code
-
-def get_current_user(token: str = Header(None)):
-    if token is None:
+def get_current_user(authorization: str = Header(None)):
+    if authorization is None:
         return None
     try:
+        token = authorization.replace('Bearer ', '') if authorization.startswith('Bearer ') else authorization
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
     except jwt.PyJWTError:
         return None
+
+def get_user_info_request(user_id: UUID, token: str):
+    api_url = USER_SERVICE_URL
+    endpoint = f"/user/{user_id}"
+    headers = {"Authorization": f"{token}"}
+    response = requests.get(f"{api_url}{endpoint}", headers=headers)
+    return response.json(), response.status_code
 
 class UUIDEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -40,7 +41,7 @@ class UUIDEncoder(json.JSONEncoder):
 def create_incident_in_database(incident_data: dict, token: str) -> Tuple[dict, int]:
     endpoint = "/"
     headers = {
-        "token": f"{token}",
+        "Authorization": f"{token}",
         "Content-Type": "application/json"
     }
     try:
@@ -54,7 +55,7 @@ def create_incident_in_database(incident_data: dict, token: str) -> Tuple[dict, 
 def create_incident_in_database_user(incident_data: dict, token: str, file: Optional[UploadFile] = None) -> Tuple[dict, int]:
     endpoint = "/user-incident"
     headers = {
-        "token": f"{token}",
+        "Authorization": f"{token}",
     }
     try:     
         form_data = {
