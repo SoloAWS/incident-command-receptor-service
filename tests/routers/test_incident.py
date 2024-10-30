@@ -75,7 +75,7 @@ def test_create_incident_success(mock_get_user_info_request, mock_create_inciden
             "channel": "phone",
             "priority": "medium"
         },
-        headers={"token": token}
+        headers={"authorization": token}
     )
 
     print(f"Response status code: {response.status_code}")
@@ -97,7 +97,7 @@ def test_create_incident_user_not_found(mock_get_user_info_request):
             "channel": "phone",
             "priority": "medium"
         },
-        headers={"token": token}
+        headers={"authorization": token}
     )
 
     assert response.status_code == 404
@@ -119,7 +119,7 @@ def test_create_incident_both_services_fail(
             "channel": "phone",
             "priority": "medium"
         },
-        headers={"token": token}
+        headers={"authorization": token}
     )
 
     assert response.status_code == 503
